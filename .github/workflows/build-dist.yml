@@ -8,9 +8,12 @@ on:
       - 'src/**'
       - 'issue-banks/**'
       - 'package.json'
+      - 'package-lock.json'
 
 jobs:
   build:
+    permissions:
+      contents: write
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
@@ -28,4 +31,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dist/
           git diff --staged --quiet || git commit -m "chore: rebuild dist [skip ci]"
-          git push
+          if ! git push; then
+            echo "::error::Failed to push dist directory. This often happens if the branch was updated concurrently."
+            exit 1
+          fi

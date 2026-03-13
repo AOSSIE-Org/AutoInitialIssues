@@ -1,10 +1,11 @@
 {
   "name": "autoinitialissues",
   "version": "1.0.0",
-  "description": "<!-- Don't delete it -->\r <div name=\"readme-top\"></div>",
+  "description": "AutoInitialIssues",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --verbose",
+    "build": "ncc build src/index.js -o dist"
   },
   "repository": {
     "type": "git",
@@ -24,6 +25,6 @@
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.4",
-    "esbuild": "^0.27.4"
+    "jest": "^30.3.0"
   }
 }

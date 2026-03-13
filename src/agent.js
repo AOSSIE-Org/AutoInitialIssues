@@ -48,11 +48,13 @@ Please generate the issues JSON array.
 `;
 
     // Wait for the fetch API to fetch models - NodeJS 18+ has native fetch
-    const response = await fetch("https://models.inference.ai.azure.com/chat/completions", {
+    const response = await fetch("https://models.github.ai/inference/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2026-03-10",
       },
       body: JSON.stringify({
         model: "gpt-4o",
@@ -66,13 +68,53 @@ Please generate the issues JSON array.
 
     if (!response.ok) {
       const errorText = await response.text();
-      core.setFailed(`GitHub Models API call failed: ${response.status} ${errorText}`);
+      core.warning(`GitHub Models API call failed: ${response.status} ${errorText}`);
       return [];
     }
 
     const data = await response.json();
-    const resultObj = JSON.parse(data.choices[0].message.content);
-    return resultObj.issues || [];
+
+    if (!Array.isArray(data.choices) || data.choices.length === 0) {
+      core.warning('GitHub Models API returned no choices.');
+      return [];
+    }
+
+    const content = data.choices[0]?.message?.content;
+    if (!content) {
+      core.warning('GitHub Models API response is missing message content.');
+      return [];
+    }
+
+    let resultObj;
+    try {
+      resultObj = JSON.parse(content);
+    } catch (parseError) {
+      core.warning(`Failed to parse AI response as JSON: ${parseError.message}`);
+      return [];
+    }
+
+    if (!Array.isArray(resultObj.issues)) {
+      core.warning('AI response does not contain a valid "issues" array.');
+      return [];
+    }
+
+    // Filter to only well-formed issue objects
+    const validIssues = resultObj.issues.filter((issue, i) => {
+      if (typeof issue.title !== 'string' || !issue.title.trim()) {
+        core.warning(`Issue at index ${i} is missing a valid "title", skipping.`);
+        return false;
+      }
+      if (typeof issue.body !== 'string') {
+        core.warning(`Issue at index ${i} is missing a valid "body", skipping.`);
+        return false;
+      }
+      if (!Array.isArray(issue.labels)) {
+        issue.labels = [];
+      }
+      return true;
+    });
+
+    return validIssues;
   } catch (error) {
     core.setFailed(`Error during AI issue generation: ${error.message}`);
     return [];

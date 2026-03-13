@@ -235,6 +235,14 @@ Navigate to [http://localhost:3000](http://localhost:3000) to see the applicatio
 
 For detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md) (if you have one).
 
+#### 6. Run Tests
+
+The project uses [Jest](https://jestjs.io/) for unit testing. Tests cover the parser, issue creation, AI agent, and the main entrypoint with all external calls mocked.
+
+```bash
+npm test
+```
+
 ---
 
 ## 📱 App Screenshots

@@ -11,9 +11,12 @@ async function run() {
     const projectTemplate = core.getInput('project_template');
     const categories = core.getInput('categories');
     const skills = core.getInput('skills');
-    const maxIssues = parseInt(core.getInput('max_issues')) || 15;
+    const maxIssues = parseInt(core.getInput('max_issues'), 10) || 15;
     const labelPrefix = core.getInput('label_prefix');
     const token = core.getInput('github_token');
+    if (!token) {
+      throw new Error('github_token is required but was not provided.');
+    }
 
     let finalIssues = [];
     const baseIssues = getBaseIssues();
@@ -52,7 +55,11 @@ async function run() {
     }
 
     // Create the issues
-    await createIssues(token, finalIssues, labelPrefix);
+    if (finalIssues.length === 0) {
+      core.info('No issues to create, skipping issue creation.');
+    } else {
+      await createIssues(token, finalIssues, labelPrefix);
+    }
     
     // Output success
     core.setOutput('issues_created', finalIssues.length);

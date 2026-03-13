@@ -14,7 +14,11 @@ async function createIssues(token, issues, labelPrefix) {
   
   for (const issue of issues) {
     try {
-      let labels = issue.labels || [];
+      if (!issue.title || typeof issue.title !== 'string') {
+        core.warning(`Skipping issue with invalid or missing title: ${JSON.stringify(issue)}`);
+        continue;
+    }
+      let labels = [...(issue.labels || [])];
       if (labelPrefix) {
         labels.push(labelPrefix);
       }
@@ -23,8 +27,8 @@ async function createIssues(token, issues, labelPrefix) {
         owner: context.repo.owner,
         repo: context.repo.repo,
         title: issue.title,
-        body: issue.body,
-        labels: Object.values(labels).filter(l => typeof l === 'string') // clean up any object structures mapping to labels
+        body: issue.body||'',
+        labels: (Array.isArray(labels) ? labels : Object.values(labels)).filter(l => typeof l === 'string')
       });
       core.info(`Created issue: ${issue.title}`);
     } catch (error) {

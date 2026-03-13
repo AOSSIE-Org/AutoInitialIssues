@@ -5,7 +5,12 @@ const core = require('@actions/core');
 function getBaseIssues() {
   const basePath = path.join(__dirname, '..', 'issue-banks', '_base', 'issues.json');
   if (fs.existsSync(basePath)) {
-    return JSON.parse(fs.readFileSync(basePath, 'utf8')).issues.default || [];
+    try {
+      return JSON.parse(fs.readFileSync(basePath, 'utf8')).issues.default || [];
+    } catch (error) {
+      core.warning(`Failed to parse base issues: ${error.message}`);
+      return [];
+    }
   }
   return [];
 }
@@ -20,7 +25,7 @@ function getPresetIssues(preset) {
   
   // Fallback to default if framework specific doesn't exist
   if (!fs.existsSync(issuePath)) {
-    core.info(`Warning: Preset file ${issuePath} not found. Falling back to default.`);
+    core.warning(`Warning: Preset file ${issuePath} not found. Falling back to default.`);
     issuePath = path.join(__dirname, '..', 'issue-banks', category, 'default.json');
   }
   
@@ -49,8 +54,13 @@ function getIssueBankForCategory(category) {
   
   for (const file of files) {
       if (file.endsWith('.json')) {
+        try{
           const content = JSON.parse(fs.readFileSync(path.join(categoryPath, file), 'utf8'));
           banks.push(content);
+        }catch(error){
+          core.warning(`Failed to parse issue bank: ${error.message}`);
+          continue;
+        }
       }
   }
   return banks;
