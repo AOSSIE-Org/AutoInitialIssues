@@ -15,11 +15,17 @@ function getBaseIssues() {
   return [];
 }
 
+function isSafePathSegment(value) {
+  return /^[a-z0-9_-]+$/i.test(value);
+}
 function getPresetIssues(preset) {
   // preset could be "frontend-nextjs" or "frontend"
   const parts = preset.split('-');
   const category = parts[0];
   const framework = parts.length > 1 ? parts.slice(1).join('-') : 'default';
+  if (!isSafePathSegment(category) || !isSafePathSegment(framework)) {
+    throw new Error(`Invalid preset value: ${preset}`);
+  }
 
   let issuePath = path.join(__dirname, '..', 'issue-banks', category, `${framework}.json`);
   
@@ -30,8 +36,7 @@ function getPresetIssues(preset) {
   }
   
   if (!fs.existsSync(issuePath)) {
-    core.setFailed(`Preset category file not found: ${issuePath}`);
-    return [];
+    throw new Error(`Preset category file not found: ${issuePath}`);
   }
 
   const content = JSON.parse(fs.readFileSync(issuePath, 'utf8'));
@@ -46,6 +51,9 @@ function getPresetIssues(preset) {
 }
 
 function getIssueBankForCategory(category) {
+  if (!isSafePathSegment(category)) {
+    throw new Error(`Invalid category value: ${category}`);
+  }
   const categoryPath = path.join(__dirname, '..', 'issue-banks', category);
   if (!fs.existsSync(categoryPath)) return [];
   

@@ -225,12 +225,11 @@ describe('run() entrypoint', () => {
     });
     mockCreate.mockResolvedValue({});
 
+    let run;
     jest.isolateModules(() => {
-      require('./src/index');
+      run = require('./src/index').run;
     });
-
-    // Allow async run() to complete
-    await new Promise((r) => setTimeout(r, 200));
+    await run();
 
     expect(core.info).toHaveBeenCalledWith('Running in Tier 1: preset mode');
     expect(core.setOutput).toHaveBeenCalledWith(
@@ -242,11 +241,11 @@ describe('run() entrypoint', () => {
   test('fails fast when github_token is missing', async () => {
     setInputs({ mode: 'preset', preset: 'frontend-nextjs', github_token: '' });
 
+    let run;
     jest.isolateModules(() => {
-      require('./src/index');
+      run = require('./src/index').run;
     });
-
-    await new Promise((r) => setTimeout(r, 200));
+    await run();
 
     expect(core.setFailed).toHaveBeenCalledWith(
       expect.stringContaining('github_token is required')

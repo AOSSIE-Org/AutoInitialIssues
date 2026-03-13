@@ -2,8 +2,8 @@ const core = require('@actions/core');
 
 async function getAIIssues(token, projectDescription, projectTemplate, categoriesStr, skillsStr, maxIssues, baseIssuesStr) {
   try {
-    const categories = categoriesStr ? categoriesStr.split(',').map(c => c.trim()) : [];
-    const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()) : [];
+    const categories = categoriesStr ? categoriesStr.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
     
     // We fetch category banks from the local parser
     const { getIssueBankForCategory } = require('./parser');
@@ -48,23 +48,39 @@ Please generate the issues JSON array.
 `;
 
     // Wait for the fetch API to fetch models - NodeJS 18+ has native fetch
-    const response = await fetch("https://models.github.ai/inference/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2026-03-10",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" }
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let response;
+    try {
+      response = await fetch("https://models.github.ai/inference/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2026-03-10",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        core.warning('GitHub Models API call timed out after 30 seconds.');
+      } else {
+        core.warning(`GitHub Models API call error: ${error.message}`);
+      }
+      return [];
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

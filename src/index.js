@@ -11,7 +11,13 @@ async function run() {
     const projectTemplate = core.getInput('project_template');
     const categories = core.getInput('categories');
     const skills = core.getInput('skills');
-    const maxIssues = parseInt(core.getInput('max_issues'), 10) || 15;
+    const rawMaxIssues = core.getInput('max_issues');
+    const parsedMaxIssues =
+      rawMaxIssues === '' ? 15 : Number.parseInt(rawMaxIssues, 10);
+    if (!Number.isInteger(parsedMaxIssues) || parsedMaxIssues < 0) {
+      throw new Error('max_issues must be a non-negative integer');
+    }
+    const maxIssues = parsedMaxIssues;
     const labelPrefix = core.getInput('label_prefix');
     const token = core.getInput('github_token');
     if (!token) {
@@ -70,4 +76,8 @@ async function run() {
   }
 }
 
-run();
+if (require.main === module) {
+  run();
+}
+
+module.exports = { run };
