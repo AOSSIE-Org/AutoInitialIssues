@@ -134,7 +134,56 @@ Please generate the issues JSON array.
       return true;
     });
 
-    return validIssues;
+    // Parse and normalize base issues
+    let mandatoryBaseIssues = [];
+    try {
+      const parsedBase = JSON.parse(baseIssuesStr);
+      mandatoryBaseIssues = Array.isArray(parsedBase) ? parsedBase : [];
+    } catch {
+      core.warning('Failed to parse mandatory base issues JSON.');
+    }
+
+    const normalizedBaseIssues = mandatoryBaseIssues
+      .filter((issue) =>
+        issue &&
+        typeof issue === 'object' &&
+        typeof issue.title === 'string' &&
+        issue.title.trim() &&
+        typeof issue.body === 'string'
+      )
+      .map((issue) => ({
+        title: issue.title,
+        body: issue.body,
+        labels: Array.isArray(issue.labels) ? issue.labels : []
+      }));
+
+    // Merge issues with case-insensitive deduplication
+    const merged = [];
+    const seen = new Set();
+    
+    // Base issues always come first and are added to 'seen'
+    for (const issue of normalizedBaseIssues) {
+      const key = issue.title.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(issue);
+      }
+    }
+
+    // AI issues are filtered against 'seen'
+    const uniqueAIIssues = validIssues.filter(i => {
+      const key = i.title.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Enforcement of maxIssues:
+    // We must return ALL base issues, and then FILL up to maxIssues with AI issues.
+    const remainingQuota = Math.max(0, maxIssues - merged.length);
+    const finalAIIssues = uniqueAIIssues.slice(0, remainingQuota);
+
+    return [...merged, ...finalAIIssues];
   } catch (error) {
     core.setFailed(`Error during AI issue generation: ${error.message}`);
     return [];

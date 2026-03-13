@@ -38,7 +38,11 @@ async function createIssues(token, issues, labelPrefix) {
       const safeTitle = issue && typeof issue === 'object' && typeof issue.title === 'string'
         ? issue.title
         : '<invalid issue>';
-      core.warning(`Failed to create issue "${safeTitle}": ${error.message}`);
+      const safeMessage =
+        error && typeof error === 'object' && 'message' in error
+          ? String(error.message)
+          : String(error);
+      core.warning(`Failed to create issue "${safeTitle}": ${safeMessage}`);
     }
   }
 }

@@ -213,6 +213,66 @@ describe('getAIIssues', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].title).toBe('Good');
   });
+
+  test('merges base issues and prioritizes them over AI issues when maxIssues is small', async () => {
+    const baseIssues = [{ title: 'Base Issue', body: 'Mandatory', labels: ['base'] }];
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                issues: [
+                  { title: 'AI Issue 1', body: 'AI 1', labels: ['ai'] },
+                  { title: 'AI Issue 2', body: 'AI 2', labels: ['ai'] },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const maxIssues = 2; // Only room for 1 AI issue
+    const issues = await getAIIssues(
+      'token', 'desc', '', '', '', maxIssues, JSON.stringify(baseIssues)
+    );
+
+    expect(issues).toHaveLength(2);
+    expect(issues[0].title).toBe('Base Issue');
+    expect(issues[1].title).toBe('AI Issue 1');
+  });
+
+  test('deduplicates AI issues if they have the same title as base issues', async () => {
+    const baseIssues = [{ title: 'Duplicate Title', body: 'Base version', labels: ['base'] }];
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                issues: [
+                  { title: 'Duplicate Title', body: 'AI version', labels: ['ai'] },
+                  { title: 'Unique AI', body: 'AI unique', labels: ['ai'] },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const issues = await getAIIssues(
+      'token', 'desc', '', '', '', 10, JSON.stringify(baseIssues)
+    );
+
+    expect(issues).toHaveLength(2);
+    expect(issues[0].title).toBe('Duplicate Title');
+    expect(issues[0].body).toBe('Base version');
+    expect(issues[1].title).toBe('Unique AI');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════
