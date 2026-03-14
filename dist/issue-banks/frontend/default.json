@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "category": "frontend",
+    "description": "General frontend development issues"
+  },
+  "issues": {
+    "default": [
+      {
+        "title": "Initialize frontend project structure",
+        "body": "Create the basic directory structure for the frontend application including `src/components`, `src/pages`, and `src/assets`.",
+        "labels": ["enhancement", "frontend"]
+      },
+      {
+        "title": "Set up global CSS/styling",
+        "body": "Configure the global stylesheet and define primary visual variables (colors, typography) based on the design system.",
+        "labels": ["design", "frontend"]
+      }
+    ],
+    "info-required": [
+      {
+        "title": "Define UI Component Library",
+        "body": "Decide and document which UI component library (if any) will be used for the frontend architecture.",
+        "labels": ["discussion", "frontend"]
+      }
+    ]
+  }
+}

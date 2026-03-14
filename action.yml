@@ -1,0 +1,46 @@
+name: 'Initial Issues Action'
+description: 'Automatically creates categorized initial issues for new repositories'
+
+inputs:
+  mode:
+    description: 'Execution mode: preset, prompt, or advanced'
+    required: false
+    default: 'preset'
+  preset:
+    description: 'Preset string for Tier 1 (e.g. frontend-nextjs, frontend)'
+    required: false
+  project_description:
+    description: 'A description of the project (Required for prompt and advanced modes)'
+    required: false
+  project_template:
+    description: 'Hint for AOSSIE project template stack'
+    required: false
+  categories:
+    description: 'Comma-separated categories for advanced mode'
+    required: false
+  skills:
+    description: 'Comma-separated skills to emphasize in issue generation'
+    required: false
+  custom_issues:
+    description: 'Path to repo-specific custom issues json'
+    required: false
+  max_issues:
+    description: 'Maximum number of issues to generate'
+    required: false
+    default: '15'
+  label_prefix:
+    description: 'Prefix to append to new issue labels (e.g. good first issue)'
+    required: false
+  issue_complexity:
+    description: 'Comma-separated complexities to filter (e.g. beginner, intermediate, advanced)'
+    required: false
+  github_token:
+    description: 'GitHub Token for creating issues and calling GitHub Models'
+    required: false
+    default: '${{ github.token }}'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+# in this some of the inputs are not fully implemented like custom_issues and issue_complexity(we will work on it later)

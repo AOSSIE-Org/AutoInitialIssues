@@ -48,21 +48,18 @@
 ---
 
 <div align="center">
-<h1>TODO: Project Name</h1>
+<h1>AutoInitialIssues</h1>
 </div>
 
-[TODO](https://TODO.stability.nexus/) is a ... TODO: Project Description.
+**AutoInitialIssues** is a powerful GitHub Action designed to automatically populate new repositories with a set of well-defined, categorized initial issues. By leveraging both preset issue banks and AI-powered generation (via GitHub Models), it helps maintainers quickly set up their projects with standard tasks, specialized framework-specific issues, and project-specific requirements.
 
 ---
 
-## 🚀 Features
-
-TODO: List your main features here:
-
-- **Feature 1**: Description
-- **Feature 2**: Description
-- **Feature 3**: Description
-- **Feature 4**: Description
+- **Tiered Execution Modes**: Choose between `preset` (fast), `prompt` (tailored), and `advanced` (expert) modes.
+- **AI-Powered Generation**: Integrates with GitHub Models (GPT-4o) to generate issues based on your project description.
+- **Extensive Issue Banks**: Access pre-defined issues for `frontend`, `backend`, `blockchain`, `ml`, `mobile`, and `devops`.
+- **Framework Specification**: Supports specific frameworks like `nextjs` and `express` for more relevant task generation.
+- **Categorization & Skills**: Filter issue generation based on specific project categories and developer skills.
 
 ---
 
@@ -70,26 +67,13 @@ TODO: List your main features here:
 
 TODO: Update based on your project
 
-### Frontend
-- React / Next.js / Flutter / React Native
-- TypeScript
-- TailwindCSS
-
 ### Backend
-- Flask / FastAPI / Node.js / Supabase
-- Database: PostgreSQL / SQLite / MongoDB
+- Node.js (v20+)
+- GitHub Actions SDK (`@actions/core`, `@actions/github`)
 
-### AI/ML (if applicable)
-- LangChain / LangGraph / LlamaIndex
-- Google Gemini / OpenAI / Anthropic Claude
-- Vector Database: Weaviate / Pinecone / Chroma
-- RAG / Prompt Engineering / Agent Frameworks
-
-### Blockchain (if applicable)
-- Solidity / solana / cardano / ergo Smart Contracts
-- Hardhat / Truffle / foundry
-- Web3.js / Ethers.js / Wagmi
-- OpenZeppelin / alchemy / Infura
+### AI/ML
+- GitHub Models API (GPT-4o)
+- Custom Prompt Engineering for Issue Generation
 
 ---
 
@@ -97,32 +81,10 @@ TODO: Update based on your project
 
 TODO: Complete applicable items based on your project type
 
-- [ ] **The protocol** (if applicable):
-   - [ ] has been described and formally specified in a paper.
-   - [ ] has had its main properties mathematically proven.
-   - [ ] has been formally verified.
-- [ ] **The smart contracts** (if applicable):
-   - [ ] were thoroughly reviewed by at least two knights of The Stable Order.
-   - [ ] were deployed to: [Add deployment details]
-- [ ] **The mobile app** (if applicable):
-   - [ ] has an _About_ page containing the Stability Nexus's logo and pointing to the social media accounts of the Stability Nexus.
-   - [ ] is available for download as a release in this repo.
-   - [ ] is available in the relevant app stores.
-- [ ] **The AI/ML components** (if applicable):
-   - [ ] LLM/model selection and configuration are documented.
-   - [ ] Prompts and system instructions are version-controlled.
-   - [ ] Content safety and moderation mechanisms are implemented.
-   - [ ] API keys and rate limits are properly managed.
-
----
-
-## 🔗 Repository Links
-
-TODO: Update with your repository structure
-
-1. [Main Repository](https://github.com/AOSSIE-Org/TODO)
-2. [Frontend](https://github.com/AOSSIE-Org/TODO/tree/main/frontend) (if separate)
-3. [Backend](https://github.com/AOSSIE-Org/TODO/tree/main/backend) (if separate)
+- [x] **The AI/ML components**:
+   - [x] LLM/model selection (GPT-4o) and configuration are documented.
+   - [x] Prompts and system instructions are version-controlled in `src/agent.js`.
+   - [x] API keys (GitHub Token) and rate limits are managed via GitHub Actions.
 
 ---
 
@@ -130,8 +92,47 @@ TODO: Update with your repository structure
 
 TODO: Add your system architecture diagram here
 
-```
-[Architecture Diagram Placeholder]
+```mermaid
+graph TD
+    subgraph Tiers [Execution Tiers]
+        T1[Tier 1: preset]
+        T2[Tier 2: prompt]
+        T3[Tier 3: advanced]
+    end
+
+    subgraph Inputs [Input Handling]
+        I1["Input<br/>preset: 'frontend-nextjs'"]
+        I2["Input<br/>project_description: '...'"]
+        I3["Input<br/>categories, skills, prompts..."]
+    end
+
+    subgraph Logic [Processing Logic]
+        L1["Parse + resolve<br/>No AI — pure file lookup"]
+        L2["GitHub Models AI<br/>Classify + filter via GITHUB_TOKEN"]
+        L3["Multi-step AI pipeline<br/>GitHub Models + custom skills"]
+    end
+
+    T1 --> I1 --> L1
+    T2 --> I2 --> L2
+    T3 --> I3 --> L3
+
+    Baseline["issues.json — mandatory baseline<br/>agent always includes default issues"]
+
+    L1 --> Baseline
+    L2 --> Baseline
+    L3 --> Baseline
+
+    Final["GitHub API ➔ issues created + self-destruct"]
+    Baseline --> Final
+
+    style T1 fill:#1b4a8a,color:#fff
+    style T2 fill:#4b3a8a,color:#fff
+    style T3 fill:#1b5a4a,color:#fff
+    style I1 fill:#1b4a8a,color:#fff
+    style I2 fill:#4b3a8a,color:#fff
+    style I3 fill:#1b5a4a,color:#fff
+    style Baseline fill:#8a5a1b,color:#fff
+    style Final fill:#1b5a1b,color:#fff
 ```
 
 You can create architecture diagrams using:
@@ -159,22 +160,15 @@ TODO: Add user flow diagrams showing how users interact with your application
 
 ### Key User Journeys
 
-TODO: Document main user flows:
+1. **Preset Setup**:
+   - User adds `AutoInitialIssues` to their workflow.
+   - User specifies `mode: preset` and `preset: frontend-nextjs`.
+   - Action creates standard issues for Next.js and base project setup.
 
-1. **User Journey 1**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-2. **User Journey 2**: Description
-   - Step 1
-   - Step 2
-   - Step 3
-
-3. **User Journey 3**: Description
-   - Step 1
-   - Step 2
-   - Step 3
+2. **AI-Tailored Setup**:
+   - User specifies `mode: prompt` and provides a `project_description`.
+   - Action calls GitHub Models API to generate context-aware issues.
+   - Action creates a tailored set of issues in the repository.
 
 ---
 
@@ -192,58 +186,87 @@ TODO: List what developers need installed
 
 TODO: Provide detailed setup instructions
 
+### Configuration
+
+Add the following step to your `.github/workflows/main.yml`:
+
+```yaml
+- name: Auto Create Initial Issues
+  uses: AOSSIE-Org/AutoInitialIssues@v1
+  with:
+    mode: 'prompt'
+    project_description: 'A task management application built with Next.js and Supabase'
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### Inputs
+
+| Name | Description | Default |
+|------|-------------|---------|
+| `mode` | Execution mode: `preset`, `prompt`, or `advanced` | `preset` |
+| `preset` | Preset string for Tier 1 (e.g., `frontend-nextjs`, `backend-express`) | - |
+| `project_description` | Detailed description for AI generation (Required for `prompt`/`advanced`) | - |
+| `project_template` | Hint for AOSSIE project template stack (e.g., `GIFT`, `AOSS`) | - |
+| `categories` | Comma-separated categories to prioritize (e.g., `frontend,backend`) | - |
+| `skills` | Comma-separated skills to emphasize (e.g., `React,Python`) | - |
+| `max_issues` | Maximum number of issues to generate | `15` |
+| `label_prefix` | Prefix to append to all generated issue labels | - |
+| `github_token` | GitHub Token for API calls (Requires `issues: write` scope) | `${{ github.token }}` |
+
+---
+
+## 🛠️ How it Works
+
+### 1. Mandatory Baseline
+Every repository gets a set of foundational issues regardless of the mode selected. These include:
+- **Set up project Code of Conduct**: Encouraging community standards.
+- **Create Contributing Guidelines**: Helping new contributors get started.
+
+### 2. Tiered Generation
+- **Preset Mode**: Uses pre-defined JSON banks located in `issue-banks/`. It follows a `{category}-{framework}` naming convention.
+- **Prompt/Advanced Mode**: Uses GitHub Models (GPT-4o) to intelligently select and adapt issues from the banks based on your `project_description`.
+
+### 3. Issue Banks
+The action maintains a library of issues categorized by area and framework:
+- **Frontend**: `default`, `nextjs`
+- **Backend**: `default`, `express`
+- **Future Support**: Plans for `blockchain`, `ml`, `mobile`, and `devops`.
+
+---
+
+## 🚀 Getting Started
+
+### Local Development
+
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/AOSSIE-Org/TODO.git
-cd TODO
+git clone https://github.com/AOSSIE-Org/AutoInitialIssues.git
+cd AutoInitialIssues
 ```
 
 #### 2. Install Dependencies
 
 ```bash
 npm install
-# or
-yarn install
-# or
-pnpm install
 ```
 
-#### 3. Configure Environment Variables(.env.example)
-
-Create a `.env` file in the root directory:
-
-```env
-# Add your environment variables here
-API_KEY=your_api_key
-DATABASE_URL=your_database_url
-```
-
-#### 4. Run the Development Server
+#### 3. Build & Test
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+npm run build
+npm test
 ```
 
-#### 5. Open your Browser
+For more detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md).
 
-Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+#### 6. Run Tests
 
-For detailed setup instructions, please refer to our [Installation Guide](./docs/INSTALL_GUIDE.md) (if you have one).
+The project uses [Jest](https://jestjs.io/) for unit testing. Tests cover the parser, issue creation, AI agent, and the main entrypoint with all external calls mocked.
 
----
-
-## 📱 App Screenshots
-
-TODO: Add screenshots showcasing your application
-
-|  |  |  |
-|---|---|---|
-| Screenshot 1 | Screenshot 2 | Screenshot 3 |
+```bash
+npm test
+```
 
 ---
 

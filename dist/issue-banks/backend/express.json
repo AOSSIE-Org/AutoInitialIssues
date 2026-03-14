@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "category": "backend",
+    "framework": "express",
+    "description": "Express.js specific backend logic"
+  },
+  "issues": {
+    "default": [
+      {
+        "title": "Initialize Express.js server",
+        "body": "Create the main `server.js` file, instantiate an Express app, and listen on the configured port.",
+        "labels": ["enhancement", "express", "backend"]
+      }
+    ],
+    "framework-specific": [
+      {
+        "title": "Set up common Express middlewares",
+        "body": "Add essential middlewares like `cors`, `helmet` (for security), and `morgan` (for logging).",
+        "labels": ["enhancement", "express"]
+      },
+      {
+        "title": "Create global error handling middleware",
+        "body": "Implement an Express error handling middleware to catch unhandled exceptions and format API error responses.",
+        "labels": ["enhancement", "express", "good first issue"]
+      }
+    ]
+  }
+}

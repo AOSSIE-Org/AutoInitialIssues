@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "category": "frontend",
+    "framework": "nextjs",
+    "description": "Next.js specific frontend development issues"
+  },
+  "issues": {
+    "default": [
+      {
+        "title": "Initialize Next.js application",
+        "body": "Run `npx create-next-app@latest` to initialize the project using the App Router and setup linting.",
+        "labels": ["enhancement", "nextjs", "frontend"]
+      }
+    ],
+    "framework-specific": [
+      {
+        "title": "Configure Next.js image optimization",
+        "body": "Update `next.config.js` to configure `<Image />` component allowed domains and optimization settings.",
+        "labels": ["enhancement", "nextjs"]
+      },
+      {
+        "title": "Setup Next.js global Error and Loading boundaries",
+        "body": "Add `error.tsx` and `loading.tsx` in the root of the App Router to gracefully handle suspense and critical errors.",
+        "labels": ["enhancement", "nextjs", "good first issue"]
+      }
+    ]
+  }
+}

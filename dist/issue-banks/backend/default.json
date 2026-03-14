@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "category": "backend",
+    "description": "General backend logic and architecture issues"
+  },
+  "issues": {
+    "default": [
+      {
+        "title": "Establish backend folder structure",
+        "body": "Set up the core directory structure including `routes`, `controllers`, `models`, and `middlewares`.",
+        "labels": ["enhancement", "backend"]
+      },
+      {
+        "title": "Configure environment variables handling",
+        "body": "Set up `dotenv` or an equivalent config module to manage secrets carefully across different environments.",
+        "labels": ["security", "backend"]
+      }
+    ],
+    "info-required": [
+      {
+        "title": "Decide on database architecture",
+        "body": "Evaluate and document whether to use a SQL (e.g., PostgreSQL) or NoSQL (e.g., MongoDB) database for the project.",
+        "labels": ["discussion", "backend"]
+      }
+    ]
+  }
+}

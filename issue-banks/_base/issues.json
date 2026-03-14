@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "category": "_base",
+    "description": "Mandatory foundational issues for all projects"
+  },
+  "issues": {
+    "default": [
+      {
+        "title": "Set up project Code of Conduct",
+        "body": "Please add a `CODE_OF_CONDUCT.md` file to the root of the repository following the Contributor Covenant standards.",
+        "labels": ["documentation", "good first issue"]
+      },
+      {
+        "title": "Create Contributing Guidelines",
+        "body": "Add a `CONTRIBUTING.md` file outlining how new developers can set up the project locally and submit pull requests.",
+        "labels": ["documentation", "good first issue"]
+      }
+    ]
+  }
+}
