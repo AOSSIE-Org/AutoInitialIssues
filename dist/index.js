@@ -31801,8 +31801,8 @@ const core = __nccwpck_require__(7484);
 
 async function getAIIssues(token, projectDescription, projectTemplate, categoriesStr, skillsStr, maxIssues, baseIssuesStr) {
   try {
-    const categories = categoriesStr ? categoriesStr.split(',').map(c => c.trim()) : [];
-    const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()) : [];
+    const categories = categoriesStr ? categoriesStr.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
     
     // We fetch category banks from the local parser
     const { getIssueBankForCategory } = __nccwpck_require__(5073);
@@ -31847,31 +31847,142 @@ Please generate the issues JSON array.
 `;
 
     // Wait for the fetch API to fetch models - NodeJS 18+ has native fetch
-    const response = await fetch("https://models.inference.ai.azure.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" }
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let response;
+    try {
+      response = await fetch("https://models.github.ai/inference/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2026-03-10",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        core.warning('GitHub Models API call timed out after 30 seconds.');
+      } else {
+        core.warning(`GitHub Models API call error: ${error.message}`);
+      }
+      return [];
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
-      core.setFailed(`GitHub Models API call failed: ${response.status} ${errorText}`);
+      core.warning(`GitHub Models API call failed: ${response.status} ${errorText}`);
       return [];
     }
 
     const data = await response.json();
-    const resultObj = JSON.parse(data.choices[0].message.content);
-    return resultObj.issues || [];
+
+    if (!Array.isArray(data.choices) || data.choices.length === 0) {
+      core.warning('GitHub Models API returned no choices.');
+      return [];
+    }
+
+    const content = data.choices[0]?.message?.content;
+    if (!content) {
+      core.warning('GitHub Models API response is missing message content.');
+      return [];
+    }
+
+    let resultObj;
+    try {
+      resultObj = JSON.parse(content);
+    } catch (parseError) {
+      core.warning(`Failed to parse AI response as JSON: ${parseError.message}`);
+      return [];
+    }
+
+    if (!Array.isArray(resultObj.issues)) {
+      core.warning('AI response does not contain a valid "issues" array.');
+      return [];
+    }
+
+    // Filter to only well-formed issue objects
+    const validIssues = resultObj.issues.filter((issue, i) => {
+      if (!issue || typeof issue !== 'object') {
+        core.warning(`Issue at index ${i} is not an object, skipping.`);
+        return false;
+      }
+      if (typeof issue.title !== 'string' || !issue.title.trim()) {
+        core.warning(`Issue at index ${i} is missing a valid "title", skipping.`);
+        return false;
+      }
+      if (typeof issue.body !== 'string') {
+        core.warning(`Issue at index ${i} is missing a valid "body", skipping.`);
+        return false;
+      }
+      if (!Array.isArray(issue.labels)) {
+        issue.labels = [];
+      }
+      return true;
+    });
+
+    // Parse and normalize base issues
+    let mandatoryBaseIssues = [];
+    try {
+      const parsedBase = JSON.parse(baseIssuesStr);
+      mandatoryBaseIssues = Array.isArray(parsedBase) ? parsedBase : [];
+    } catch {
+      core.warning('Failed to parse mandatory base issues JSON.');
+    }
+
+    const normalizedBaseIssues = mandatoryBaseIssues
+      .filter((issue) =>
+        issue &&
+        typeof issue === 'object' &&
+        typeof issue.title === 'string' &&
+        issue.title.trim() &&
+        typeof issue.body === 'string'
+      )
+      .map((issue) => ({
+        title: issue.title,
+        body: issue.body,
+        labels: Array.isArray(issue.labels) ? issue.labels : []
+      }));
+
+    // Merge issues with case-insensitive deduplication
+    const merged = [];
+    const seen = new Set();
+    
+    // Base issues always come first and are added to 'seen'
+    for (const issue of normalizedBaseIssues) {
+      const key = issue.title.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(issue);
+      }
+    }
+
+    // AI issues are filtered against 'seen'
+    const uniqueAIIssues = validIssues.filter(i => {
+      const key = i.title.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Enforcement of maxIssues:
+    // We must return ALL base issues, and then FILL up to maxIssues with AI issues.
+    const remainingQuota = Math.max(0, maxIssues - merged.length);
+    const finalAIIssues = uniqueAIIssues.slice(0, remainingQuota);
+
+    return [...merged, ...finalAIIssues];
   } catch (error) {
     core.setFailed(`Error during AI issue generation: ${error.message}`);
     return [];
@@ -31881,6 +31992,96 @@ Please generate the issues JSON array.
 module.exports = {
   getAIIssues
 };
+
+
+/***/ }),
+
+/***/ 2116:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(7484);
+const { getBaseIssues, getPresetIssues } = __nccwpck_require__(5073);
+const { getAIIssues } = __nccwpck_require__(5365);
+const { createIssues } = __nccwpck_require__(742);
+
+async function run() {
+  try {
+    const mode = core.getInput('mode') || 'preset';
+    const preset = core.getInput('preset');
+    const projectDescription = core.getInput('project_description');
+    const projectTemplate = core.getInput('project_template');
+    const categories = core.getInput('categories');
+    const skills = core.getInput('skills');
+    const rawMaxIssues = core.getInput('max_issues');
+    const parsedMaxIssues =
+      rawMaxIssues === '' ? 15 : Number.parseInt(rawMaxIssues, 10);
+    if (!Number.isInteger(parsedMaxIssues) || parsedMaxIssues < 0) {
+      throw new Error('max_issues must be a non-negative integer');
+    }
+    const maxIssues = parsedMaxIssues;
+    const labelPrefix = core.getInput('label_prefix');
+    const token = core.getInput('github_token');
+    if (!token) {
+      throw new Error('github_token is required but was not provided.');
+    }
+
+    let finalIssues = [];
+    const baseIssues = getBaseIssues();
+
+    if (mode === 'preset') {
+      core.info('Running in Tier 1: preset mode');
+      if (!preset) {
+        throw new Error('preset input is required in preset mode');
+      }
+      const presetIssues = getPresetIssues(preset);
+      // Combine base + preset
+      finalIssues = [...baseIssues, ...presetIssues];
+    } else if (mode === 'prompt' || mode === 'advanced') {
+      core.info(`Running in Tier 2/3: ${mode} mode`);
+      if (!projectDescription) {
+        throw new Error('project_description is required in prompt/advanced mode');
+      }
+      
+      const baseIssuesStr = JSON.stringify(baseIssues, null, 2);
+      finalIssues = await getAIIssues(
+          token, 
+          projectDescription, 
+          projectTemplate, 
+          categories, 
+          skills, 
+          maxIssues, 
+          baseIssuesStr
+      );
+    } else {
+      throw new Error(`Unknown mode: ${mode}`);
+    }
+
+    // Limit issues if config specifies
+    if (finalIssues.length > maxIssues) {
+        finalIssues = finalIssues.slice(0, maxIssues);
+    }
+
+    // Create the issues
+    if (finalIssues.length === 0) {
+      core.info('No issues to create, skipping issue creation.');
+    } else {
+      await createIssues(token, finalIssues, labelPrefix);
+    }
+    
+    // Output success
+    core.setOutput('issues_created', finalIssues.length);
+    core.info(`Successfully processed ${finalIssues.length} issues.`);
+
+  } catch (error) {
+    core.setFailed(`Action failed with error: ${error.message}`);
+  }
+}
+
+if (require.main === require.cache[eval('__filename')]) {
+  run();
+}
+
+module.exports = { run };
 
 
 /***/ }),
@@ -31904,7 +32105,14 @@ async function createIssues(token, issues, labelPrefix) {
   
   for (const issue of issues) {
     try {
-      let labels = issue.labels || [];
+      if (!issue || typeof issue !== 'object' || typeof issue.title !== 'string' || !issue.title.trim()) {
+        core.warning(`Skipping issue with invalid or missing title: ${JSON.stringify(issue)}`);
+        continue;
+    }
+      const rawLabels = issue.labels;
+      let labels = Array.isArray(rawLabels)
+        ? [...rawLabels]
+        : (rawLabels && typeof rawLabels === 'object' ? Object.values(rawLabels) : []);
       if (labelPrefix) {
         labels.push(labelPrefix);
       }
@@ -31913,12 +32121,19 @@ async function createIssues(token, issues, labelPrefix) {
         owner: context.repo.owner,
         repo: context.repo.repo,
         title: issue.title,
-        body: issue.body,
-        labels: Object.values(labels).filter(l => typeof l === 'string') // clean up any object structures mapping to labels
+        body: issue.body||'',
+        labels:labels.filter(l => typeof l === 'string')
       });
       core.info(`Created issue: ${issue.title}`);
     } catch (error) {
-      core.warning(`Failed to create issue "${issue.title}": ${error.message}`);
+      const safeTitle = issue && typeof issue === 'object' && typeof issue.title === 'string'
+        ? issue.title
+        : '<invalid issue>';
+      const safeMessage =
+        error && typeof error === 'object' && 'message' in error
+          ? String(error.message)
+          : String(error);
+      core.warning(`Failed to create issue "${safeTitle}": ${safeMessage}`);
     }
   }
 }
@@ -31940,28 +32155,38 @@ const core = __nccwpck_require__(7484);
 function getBaseIssues() {
   const basePath = __nccwpck_require__.ab + "issues.json";
   if (fs.existsSync(__nccwpck_require__.ab + "issues.json")) {
-    return JSON.parse(fs.readFileSync(basePath, 'utf8')).issues.default || [];
+    try {
+      return JSON.parse(fs.readFileSync(basePath, 'utf8')).issues.default || [];
+    } catch (error) {
+      core.warning(`Failed to parse base issues: ${error.message}`);
+      return [];
+    }
   }
   return [];
 }
 
+function isSafePathSegment(value) {
+  return /^[a-z0-9_-]+$/i.test(value);
+}
 function getPresetIssues(preset) {
   // preset could be "frontend-nextjs" or "frontend"
   const parts = preset.split('-');
   const category = parts[0];
   const framework = parts.length > 1 ? parts.slice(1).join('-') : 'default';
+  if (!isSafePathSegment(category) || !isSafePathSegment(framework)) {
+    throw new Error(`Invalid preset value: ${preset}`);
+  }
 
   let issuePath = __nccwpck_require__.ab + "issue-banks/" + category + '\\' + framework + '.json';
   
   // Fallback to default if framework specific doesn't exist
   if (!fs.existsSync(issuePath)) {
-    core.info(`Warning: Preset file ${issuePath} not found. Falling back to default.`);
+    core.warning(`Warning: Preset file ${issuePath} not found. Falling back to default.`);
     issuePath = __nccwpck_require__.ab + "issue-banks/" + category + '/default.json';
   }
   
   if (!fs.existsSync(issuePath)) {
-    core.setFailed(`Preset category file not found: ${issuePath}`);
-    return [];
+    throw new Error(`Preset category file not found: ${issuePath}`);
   }
 
   const content = JSON.parse(fs.readFileSync(issuePath, 'utf8'));
@@ -31976,6 +32201,9 @@ function getPresetIssues(preset) {
 }
 
 function getIssueBankForCategory(category) {
+  if (!isSafePathSegment(category)) {
+    throw new Error(`Invalid category value: ${category}`);
+  }
   const categoryPath = __nccwpck_require__.ab + "issue-banks/" + category;
   if (!fs.existsSync(categoryPath)) return [];
   
@@ -31984,8 +32212,13 @@ function getIssueBankForCategory(category) {
   
   for (const file of files) {
       if (file.endsWith('.json')) {
+        try{
           const content = JSON.parse(fs.readFileSync(path.join(categoryPath, file), 'utf8'));
           banks.push(content);
+        }catch(error){
+          core.warning(`Failed to parse issue bank: ${error.message}`);
+          continue;
+        }
       }
   }
   return banks;
@@ -32038,74 +32271,12 @@ module.exports = {
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-const core = __nccwpck_require__(7484);
-const { getBaseIssues, getPresetIssues } = __nccwpck_require__(5073);
-const { getAIIssues } = __nccwpck_require__(5365);
-const { createIssues } = __nccwpck_require__(742);
-
-async function run() {
-  try {
-    const mode = core.getInput('mode') || 'preset';
-    const preset = core.getInput('preset');
-    const projectDescription = core.getInput('project_description');
-    const projectTemplate = core.getInput('project_template');
-    const categories = core.getInput('categories');
-    const skills = core.getInput('skills');
-    const maxIssues = parseInt(core.getInput('max_issues')) || 15;
-    const labelPrefix = core.getInput('label_prefix');
-    const token = core.getInput('github_token');
-
-    let finalIssues = [];
-    const baseIssues = getBaseIssues();
-
-    if (mode === 'preset') {
-      core.info('Running in Tier 1: preset mode');
-      if (!preset) {
-        throw new Error('preset input is required in preset mode');
-      }
-      const presetIssues = getPresetIssues(preset);
-      // Combine base + preset
-      finalIssues = [...baseIssues, ...presetIssues];
-    } else if (mode === 'prompt' || mode === 'advanced') {
-      core.info(`Running in Tier 2/3: ${mode} mode`);
-      if (!projectDescription) {
-        throw new Error('project_description is required in prompt/advanced mode');
-      }
-      
-      const baseIssuesStr = JSON.stringify(baseIssues, null, 2);
-      finalIssues = await getAIIssues(
-          token, 
-          projectDescription, 
-          projectTemplate, 
-          categories, 
-          skills, 
-          maxIssues, 
-          baseIssuesStr
-      );
-    } else {
-      throw new Error(`Unknown mode: ${mode}`);
-    }
-
-    // Limit issues if config specifies
-    if (finalIssues.length > maxIssues) {
-        finalIssues = finalIssues.slice(0, maxIssues);
-    }
-
-    // Create the issues
-    await createIssues(token, finalIssues, labelPrefix);
-    
-    // Output success
-    core.setOutput('issues_created', finalIssues.length);
-    core.info(`Successfully processed ${finalIssues.length} issues.`);
-
-  } catch (error) {
-    core.setFailed(`Action failed with error: ${error.message}`);
-  }
-}
-
-run();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(2116);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
